@@ -16,3 +16,13 @@ Khi sửa frontend, chạy `npm install` rồi `npm run build` trước bước 
 Kiểm tra dịch vụ tại `http://localhost:8000/api/health`. Qdrant chạy cổng `6333`; MongoDB chạy cổng `27017`.
 
 Luồng Agent: Orchestrator → Safety → Intent/Context → Qdrant Retrieval → Evidence Gate → OpenAI Tutor → Citation Verifier → Learning Insight. Tavily chỉ được gọi sau khi học viên bấm đồng ý tìm web.
+
+## Chạy golden set CP3
+
+Khi backend đang chạy tại cổng 8000:
+
+```powershell
+uv run python scripts/run_eval.py
+```
+
+Kết quả được ghi vào `../eval/run-1-results.json` và `../eval/run-1-results.md`. Mỗi lần gọi OpenAI được append dạng JSONL vào `runtime/model_calls.jsonl`, gồm prompt đầu vào, raw response, model, latency và loại lỗi; logger không ghi API key hay user ID. Có thể tắt bằng `MODEL_TRACE_ENABLED=false`.

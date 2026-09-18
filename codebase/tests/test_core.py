@@ -1,6 +1,9 @@
 import unittest
+import json
+import tempfile
+from unittest.mock import patch
 
-from app.main import DOCUMENT_METADATA, DOCUMENT_SCOPES, PROJECT_ROOT, EvidenceAgent, IntentContextAgent, Orchestrator, RetrievalAgent
+from app.main import DOCUMENT_METADATA, DOCUMENT_SCOPES, PROJECT_ROOT, EvidenceAgent, IntentContextAgent, ModelCallLogger, Orchestrator, RetrievalAgent
 from pathlib import Path
 
 from scripts.ingest import extract_pdf_pages, semantic_chunks, strip_decorative_icons
@@ -29,6 +32,8 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(classifier.classify("đoạn này?", ""), "ambiguous")
         self.assertEqual(classifier.classify("Cái này hoạt động thế nào?", ""), "ambiguous")
         self.assertEqual(classifier.classify("Nó khác cái kia ở đâu?", ""), "ambiguous")
+        self.assertEqual(classifier.classify("Chi tiết", ""), "ambiguous")
+        self.assertEqual(classifier.classify("Tiếp đi", ""), "ambiguous")
         self.assertIsNotNone(classifier.broad_lookup_pattern.search("Tìm nội dung về agent"))
 
     def test_clear_out_of_scope_requests_are_caught_before_retrieval(self):
@@ -40,6 +45,19 @@ class CoreTests(unittest.TestCase):
         self.assertTrue(RetrievalAgent.has_scope_conflict("Double Diamond trong Day 2 gồm những bước nào?", "d1-slide-hackathon"))
         self.assertFalse(RetrievalAgent.has_scope_conflict("LLM trong Day 1 là gì?", "d1-slide-hackathon"))
         self.assertEqual(RetrievalAgent.resolve_scope("Nội dung Day 2 là gì?", None), "d2-slide-hackathon")
+
+    def test_model_call_trace_records_prompt_and_raw_output_without_credentials(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            "os.environ",
+            {"MODEL_TRACE_PATH": str(Path(directory) / "trace.jsonl"), "MODEL_TRACE_ENABLED": "true"},
+        ):
+            logger = ModelCallLogger()
+            logger.write(stage="answer", model="test-model", prompt="QUESTION: LLM là gì?", raw_response='{"answer":"..."}', latency_ms=12)
+            row = json.loads(logger.path.read_text(encoding="utf-8"))
+            self.assertEqual(row["stage"], "answer")
+            self.assertIn("LLM là gì?", row["prompt"])
+            self.assertEqual(row["raw_response"], '{"answer":"..."}')
+            self.assertNotIn("api_key", row)
 
 
     def test_document_scopes_follow_real_lecture_mapping(self):

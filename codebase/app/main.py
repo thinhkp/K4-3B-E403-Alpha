@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -45,6 +46,33 @@ PEDAGOGICAL_MOVES = [
     "connect_prior_knowledge",
     "correct_misconception",
 ]
+
+
+class ModelCallLogger:
+    """Append model inputs and raw outputs as JSONL without credentials or user IDs."""
+
+    def __init__(self) -> None:
+        configured = Path(os.getenv("MODEL_TRACE_PATH", "runtime/model_calls.jsonl"))
+        self.path = configured if configured.is_absolute() else CODEBASE_ROOT / configured
+        self.enabled = os.getenv("MODEL_TRACE_ENABLED", "true").casefold() not in {"0", "false", "no"}
+        self._lock = threading.Lock()
+
+    def write(self, *, stage: str, model: str, prompt: str, raw_response: str | None, latency_ms: int, error_type: str | None = None) -> None:
+        if not self.enabled:
+            return
+        row = {
+            "call_id": str(uuid.uuid4()),
+            "created_at": utc_now().isoformat(),
+            "stage": stage,
+            "model": model,
+            "prompt": prompt,
+            "raw_response": raw_response,
+            "latency_ms": latency_ms,
+            "error_type": error_type,
+        }
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self._lock, self.path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 DOCUMENT_METADATA: dict[str, tuple[str, str]] = {
     "d1-slide-hackathon": ("D01", "AI & LLM Foundation"),
@@ -298,12 +326,13 @@ class IntentContextAgent:
             question,
             re.I,
         )
+        standalone_vague = re.fullmatch(r"\s*(?:tiếp\s*(?:đi|tục)?|chi\s*tiết|giải\s*thích)\s*[?.!]*\s*", question, re.I)
         vague_deictic = not selected_text and re.search(
             r"\b(?:cái|phần|đoạn|nội dung)\s+(?:này|đó|kia)\b|^\s*nó\b",
             question,
             re.I,
         )
-        if len(question.strip()) < 3 or generic_reference or vague_deictic or (selected_text and len(selected_text) < 12 and re.search(r"đoạn|giải thích|này", question, re.I)):
+        if len(question.strip()) < 3 or generic_reference or standalone_vague or vague_deictic or (selected_text and len(selected_text) < 12 and re.search(r"đoạn|giải thích|này", question, re.I)):
             return "ambiguous"
         return "academic"
 
@@ -370,6 +399,7 @@ class TutorAgent:
     def __init__(self) -> None:
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY")) if os.getenv("OPENAI_API_KEY") else None
         self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        self.call_logger = ModelCallLogger()
 
     def answer(self, question: str, history: list[dict[str, Any]], sources: list[dict[str, Any]], scope: str | None) -> dict[str, Any]:
         allowed = [source["source_id"] for source in sources]
@@ -384,20 +414,38 @@ class TutorAgent:
         }
         if self.client:
             for attempt in range(2):
+                model_input = (
+                    f"COURSE_SCOPE: {scope or 'Toàn bộ dữ liệu bài học'}\n\n"
+                    f"QUESTION:\n{question}\n\n"
+                    f"HISTORY:\n{json.dumps(history[-6:], ensure_ascii=False)}\n\n"
+                    f"ALLOWED_SOURCE_IDS: {json.dumps(allowed)}\n\nSOURCES:\n{source_text}"
+                )
+                trace_prompt = f"INSTRUCTIONS:\n{SYSTEM_PROMPT}\n\nINPUT:\n{model_input}"
+                started = time.perf_counter()
                 try:
                     response = self.client.responses.create(
                         model=self.model, store=False, instructions=SYSTEM_PROMPT,
-                        input=(
-                            f"COURSE_SCOPE: {scope or 'Toàn bộ dữ liệu bài học'}\n\n"
-                            f"QUESTION:\n{question}\n\n"
-                            f"HISTORY:\n{json.dumps(history[-6:], ensure_ascii=False)}\n\n"
-                            f"ALLOWED_SOURCE_IDS: {json.dumps(allowed)}\n\nSOURCES:\n{source_text}"
-                        ),
+                        input=model_input,
                         text={"format": {"type": "json_schema", "name": "grounded_tutor_response", "strict": True, "schema": schema}},
                         max_output_tokens=700,
                     )
+                    self.call_logger.write(
+                        stage="answer",
+                        model=self.model,
+                        prompt=trace_prompt,
+                        raw_response=response.output_text,
+                        latency_ms=round((time.perf_counter() - started) * 1000),
+                    )
                     return json.loads(response.output_text)
                 except Exception as error:
+                    self.call_logger.write(
+                        stage="answer",
+                        model=self.model,
+                        prompt=trace_prompt,
+                        raw_response=None,
+                        latency_ms=round((time.perf_counter() - started) * 1000),
+                        error_type=type(error).__name__,
+                    )
                     LOGGER.warning("OpenAI answer attempt %s failed (%s)", attempt + 1, type(error).__name__)
                     if attempt == 0:
                         time.sleep(0.4)
@@ -426,14 +474,32 @@ class TutorAgent:
             }, "required": ["answer", "citations", "pedagogical_move", "needs_clarification", "follow_up_question"],
         }
         source_text = "\n\n".join(f"SOURCE {source['source_id']}:\n{source['text'][:1500]}" for source in sources)
+        model_input = f"ALLOWED_SOURCE_IDS: {json.dumps([s['source_id'] for s in sources])}\n\nINVALID_RESPONSE: {json.dumps(result, ensure_ascii=False)}\n\nSOURCES:\n{source_text}"
+        trace_prompt = f"INSTRUCTIONS:\n{SYSTEM_PROMPT}\n\n{REPAIR_PROMPT}\n\nINPUT:\n{model_input}"
+        started = time.perf_counter()
         try:
             response = self.client.responses.create(
                 model=self.model, store=False, instructions=SYSTEM_PROMPT + "\n\n" + REPAIR_PROMPT,
-                input=f"ALLOWED_SOURCE_IDS: {json.dumps([s['source_id'] for s in sources])}\n\nINVALID_RESPONSE: {json.dumps(result, ensure_ascii=False)}\n\nSOURCES:\n{source_text}",
+                input=model_input,
                 text={"format": {"type": "json_schema", "name": "repaired_grounded_response", "strict": True, "schema": schema}}, max_output_tokens=700,
             )
+            self.call_logger.write(
+                stage="citation_repair",
+                model=self.model,
+                prompt=trace_prompt,
+                raw_response=response.output_text,
+                latency_ms=round((time.perf_counter() - started) * 1000),
+            )
             return json.loads(response.output_text)
-        except Exception:
+        except Exception as error:
+            self.call_logger.write(
+                stage="citation_repair",
+                model=self.model,
+                prompt=trace_prompt,
+                raw_response=None,
+                latency_ms=round((time.perf_counter() - started) * 1000),
+                error_type=type(error).__name__,
+            )
             return result
 
 
