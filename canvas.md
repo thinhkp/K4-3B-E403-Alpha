@@ -1,3 +1,4 @@
+
 # Canvas CP1 — VLearn Tutor trả lời có căn cứ
 
 **Đội trưởng:** Nguyễn Minh Thịnh · **Mã học viên:** 2A202602556
@@ -11,3 +12,4 @@
 | 5 | Lát cắt MỘT CÂU (1 user · 1 việc · 1 quyết định AI · 1 kết quả) | Minh đang đọc tài liệu và hỏi về nội dung đang mở · AI quyết định **nguồn hiện có đã đủ căn cứ hay chưa** · nếu đủ thì trả lời đúng cỡ kèm `[trang N]`, nếu thiếu thì nói rõ giới hạn và hỏi đúng một câu làm rõ · học viên biết câu nào có thể kiểm tra và phải làm gì tiếp. |
 | 6 | AI tự làm đến đâu + 1 dòng lý do · ≥3 willing users ngoài nhóm | **Conditional:** tự truy xuất và trả lời khi có đoạn nguồn phù hợp; không suy đoán khi không tìm được nguồn hoặc input mơ hồ, mà nêu “chưa đủ căn cứ” và yêu cầu thêm ngữ cảnh. *Lý do:* sai kiến thức khiến học viên học sai và mất niềm tin, nên cost-of-error cao hơn một lượt hỏi lại. **Willing users:** Đoàn Quang Minh · Nguyễn Văn An · Trần Ngọc Đăng Khoa. |
 | 7 | Phân công có tên | **Nguyễn Minh Thịnh** — đội trưởng, canvas/spec, prompt và tiêu chí “đủ căn cứ” · **Phạm Xuân Quý** — mining evidence, bảng đếm và `turn_id` · **Vũ Minh Điềm** — prototype UI và lời gọi AI thật · **Phan Đại Cương** — golden set, user test, demo và changelog. |
+

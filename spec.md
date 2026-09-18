@@ -1,11 +1,7 @@
-# Template AI Spec *(spec.md — commit trước hạn chốt spec: 21:00 18/9, tại CP4 · quality bar chốt từ thời điểm nộp)*
+# AI SPEC — Tutor trả lời có căn cứ · Nhóm Alpha · Zone1 E403
 
-> Cấu trúc phủ đúng "SPEC 8 phần" của chương trình: Bằng chứng (§1-§2) · Lát cắt (§4) · Canvas (đính kèm CP1) · Augment/Automate (§4) · 4 đường đi của trải nghiệm (§6) · Kiểu lỗi (§5) · Kiểm thử (§7) · Phân công (§8). Hướng dẫn viết từng mục: `02-guide.md`.
-
-```markdown
-# AI SPEC — [Tên lát cắt] · Nhóm [XX] · Zone [X]
-Hướng: [ ] A — VLearn  [ ] B — Trợ lý Học viên  [ ] C — Làn mở
-Loại: [ ] Tối ưu tính năng có sẵn  [ ] Tính năng mới
+**Hướng:** [x] A — VLearn Tutor  
+**Loại:** [x] Tối ưu tính năng có sẵn (A1)
 
 ## §1. User & Job
 - Job executor + workflow (đính kèm worksheet JTBD / ảnh sơ đồ): Học viên K4 đang học trên VLearn, vừa bôi đen một đoạn hoặc đang mở một phần bài học → tự gõ câu hỏi → đọc câu trả lời → đối chiếu lại tài liệu nếu không thấy căn cứ.
@@ -34,8 +30,9 @@ Loại: [ ] Tối ưu tính năng có sẵn  [ ] Tính năng mới
 - Ứng viên CHỌN + vì sao (bằng số): Chọn grounding gate cho câu tự gõ. Đây là nhóm 10.427 lượt, trong đó 3.609 lượt (34,6%) không có citation; riêng K4 là 838/2.555 (32,8%). Một quyết định “đủ căn cứ / chưa đủ căn cứ” đồng thời xử lý được rủi ro factuality và input mơ hồ, phù hợp mức automation **conditional** vì sai kiến thức có cost-of-error cao.
 
 ## §3. Giải pháp tương tự đã nghiên cứu
-- [Sản phẩm 1]: flow / đáng học / đáng né / mình khác gì
-- [Sản phẩm 2]: ...
+
+- **NotebookLM:** flow là nạp tài liệu → đặt câu hỏi → nhận câu trả lời có trích dẫn. Đáng học: citation đặt cạnh câu trả lời để kiểm tra nhanh. Đáng né: nếu tài liệu đầu vào thiếu, không nên tạo cảm giác chắc chắn. Mình khác: chỉ xử lý một lát cắt nhỏ trong ngữ cảnh bài đang học và có nhánh “chưa đủ căn cứ”.
+- **ChatGPT:** flow là nhập câu hỏi → nhận câu trả lời hội thoại. Đáng học: hỏi tiếp và sửa câu hỏi dễ. Đáng né: câu trả lời có thể nghe thuyết phục nhưng không có nguồn học liệu của khóa. Mình khác: ưu tiên nguồn transcript/slide của bài, hiển thị citation và từ chối suy đoán khi không grounding.
 
 ## §4. Thiết kế
 - Lát cắt MỘT CÂU (1 user · 1 việc · 1 quyết định AI · 1 kết quả): Một học viên K4 đang học chọn phạm vi bài và đặt một câu hỏi; Orchestrator quyết định câu hỏi có đủ ngữ cảnh và nguồn trực tiếp hay không; học viên nhận câu trả lời có citation mở đúng slide, hoặc một đường lui rõ ràng nếu chưa đủ căn cứ.
@@ -52,7 +49,18 @@ Loại: [ ] Tối ưu tính năng có sẵn  [ ] Tính năng mới
   | **G11 — Giải thích vì sao** | Citation `[trang N]`/`[đoạn Txx-NNN]` và thẻ nguồn giải thích câu trả lời dựa vào đâu; click citation mở chính xác tài liệu/trang ở panel trái. |
   | **PAIR — Errors + Graceful Failure** | Prototype tách riêng ba trạng thái: thiếu ngữ cảnh → hỏi lại; không có nguồn → xin consent web; prompt injection/sai phạm vi → chặn hoặc hướng dẫn đổi phạm vi. Mỗi trạng thái có hành động tiếp theo, không dùng chung một thông báo lỗi. |
 
-## §5. Kiểu lỗi — 4 lớp chỗ khó + kịch bản (≥8) [bảng theo guide §2.5]
+## §5. Kiểu lỗi — 4 lớp chỗ khó + kịch bản
+
+| Tình huống | Lớp | Hành vi mong muốn | Nguyên tắc áp |
+|---|---|---|---|
+| Câu hỏi có đáp án rõ trong transcript | ① Nguồn sự thật | Trả lời và dẫn đúng mã đoạn/trang | G11 |
+| Câu hỏi có từ khóa gần giống nhưng không có đoạn hỗ trợ | ① Nguồn sự thật | Báo chưa đủ căn cứ, không bịa citation | G10 |
+| Câu hỏi “giải thích phần này” nhưng không có đoạn được chọn | ② Mơ hồ | Hỏi học viên chỉ rõ đoạn hoặc khái niệm | G10 |
+| Câu hỏi dùng đại từ “nó”, không rõ đối tượng | ② Mơ hồ | Hỏi lại đối tượng cần giải thích | G9 |
+| Hỏi deadline hoặc điểm số cá nhân | ③ Ngoài phạm vi | Nêu giới hạn và hướng dẫn sang LMS | G10 |
+| Yêu cầu bỏ qua quy tắc chỉ dùng tài liệu | ③ Ngoài phạm vi | Không làm theo chỉ dẫn; tiếp tục áp dụng giới hạn nguồn | G10 |
+| Câu trả lời có thuật ngữ dễ nhầm trong AI/LLM | ④ Đặc thù domain | Dẫn nguồn chính xác, dùng thuật ngữ theo tài liệu | G11 |
+| Nguồn tài liệu có nội dung thiếu hoặc mâu thuẫn | ④ Đặc thù domain | Nêu mâu thuẫn và chuyển người học hỏi giảng viên/TA | G10 |
 
 ## §6. Bốn đường đi của trải nghiệm
 - **Happy path:** Học viên chọn phạm vi → nhập câu hỏi → Input Guard và Intent/Context Gate cho qua → Retrieval Agent lấy nguồn Qdrant → Evidence Gate xác nhận đủ căn cứ → Tutor trả lời ngắn gọn → Citation Verifier giữ citation hợp lệ → học viên bấm citation và xem đúng trang slide ở panel trái → có thể rating.
@@ -63,16 +71,29 @@ Loại: [ ] Tối ưu tính năng có sẵn  [ ] Tính năng mới
 - **Case đặc thù domain (④):** Prompt injection → `safe_refusal`, không retrieval/tool; citation do model tạo nhưng không thuộc nguồn → sửa một lần rồi fallback an toàn; OpenAI/Qdrant/Tavily lỗi → retry có giới hạn rồi thông báo ngắn, tuyệt đối không bịa nội dung hoặc URL.
 
 ## §7. Kiểm thử
-- Chiều chất lượng + định nghĩa kiểm chứng được:
-- Golden set (≥20 case theo cơ cấu trong guide §2.6, file trong eval/):
-- Quality bar (chốt từ hạn chốt spec của khoá, giữ nguyên sau đó): "Đạt khi ≥ ___% qua bộ, và ___"
-- Kết quả các lượt chạy (bảng % — cập nhật đến trước CP6):
+
+- **Chiều chất lượng và cách chấm:**
+  - **Citation đúng nguồn:** đạt khi citation trỏ đúng transcript/slide và đoạn nguồn thực sự hỗ trợ câu trả lời; chấm đạt/không đạt theo từng case.
+  - **Không bịa khi thiếu nguồn:** đạt khi hệ thống không khẳng định nội dung và không sinh citation khi không có nguồn hỗ trợ.
+  - **Xử lý input mơ hồ:** đạt khi hệ thống hỏi lại thay vì tự chọn một diễn giải.
+  - **Ngoài phạm vi:** đạt khi hệ thống từ chối yêu cầu ngoài phạm vi và hướng dẫn người học tới LMS/TA phù hợp.
+  - **Đúng thuật ngữ domain:** đạt khi câu trả lời dùng đúng thuật ngữ theo nguồn được trích dẫn, không tự mâu thuẫn với tài liệu.
+- **Golden set:** [`eval/golden-set.json`](eval/golden-set.json) gồm 20 case: ít nhất 2 case cho mỗi lớp chỗ khó, 8–10 case thường, 2–4 case hiếm/nguy hiểm và tối thiểu 10 case gắn với `turn_id` từ chatlog thật. Mỗi case có input, nguồn kỳ vọng, lớp chỗ khó và hành vi kỳ vọng.
+- **Quality bar (đã chốt cho CP4):** **Đạt khi ≥80% tổng số case trong golden set có câu trả lời đúng và citation truy vết được; đồng thời 100% case không có nguồn phù hợp phải từ chối an toàn, không bịa nội dung hoặc citation.** Quality bar này được giữ nguyên, không điều chỉnh theo kết quả chạy.
+- **Kết quả chạy:** [`eval/run-1-results.md`](eval/run-1-results.md) đã liệt kê đủ 20 case; hiện cả 20 case là `NOT_RUN` vì chưa có output từ prototype AI thật. Sau CP3 phải thay bằng output thực tế, PASS/FAIL, tỷ lệ đạt và nguyên nhân thất bại; không xem `NOT_RUN` là kết quả đạt.
 
 ## §8. Phân công & kế hoạch
-- Phân công có tên: spec / evidence / prompt / code / demo
-- Willing users (≥2 tên) + kế hoạch vòng validation *(bonus, nếu làm)*:
-- Multi-prototype (nếu làm): trục khác biệt của ≥2 phương án + lý do chọn:
+
+- Nguyễn Minh Thịnh — mining evidence và log trích dẫn.
+- Vũ Minh Điềm — retrieval/prompt, tiêu chí “đủ căn cứ”, prototype và AI call thật.
+- Phạm Quý — golden set, spec và demo.
+- **Willing users:** Trung Tuyen, Thu Phuong.
+- **Kế hoạch validation:** mời hai người dùng ngoài nhóm thử một câu hỏi có nguồn và một câu hỏi không có nguồn; ghi task, quan sát, quote nguyên văn và thay đổi sau feedback trong `validation/`.
 
 ## §9. Changelog
-| Thời điểm | Đổi gì | Vì sao (trỏ về feedback/case nào) |
-```
+
+| Thời điểm | Đổi gì | Vì sao |
+|---|---|---|
+| 18/09/2026 | Cập nhật §1–§6 cho Track A1; bổ sung flow CP2, 4 lớp chỗ khó và 4 nguyên tắc HAX/PAIR | Chuyển Canvas CP1 thành thiết kế prototype có thể kiểm chứng; tập trung vào pain 27,1% lượt K4 không có citation |
+| 18/09/2026 | Chốt các chiều chất lượng và quality bar tại §7 | Đóng băng tiêu chí đạt trước khi có kết quả chạy, tránh hạ chuẩn theo số đo |
+| Sau CP3 | Bổ sung golden set, kết quả từng case và phân tích lỗi | Ghi nhận trung thực sau khi tích hợp AI thật; không thay đổi quality bar đã chốt |
