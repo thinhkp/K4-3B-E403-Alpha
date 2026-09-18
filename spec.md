@@ -87,7 +87,7 @@
 - Nguyễn Minh Thịnh — mining evidence và log trích dẫn.
 - Vũ Minh Điềm — retrieval/prompt, tiêu chí “đủ căn cứ”, prototype và AI call thật.
 - Phạm Quý — golden set, spec và demo.
-- **Willing users:** Trung Tuyen, Thu Phuong.
+- **Willing users:** Đoàn Quang Minh, Nguyễn Văn An, Trần Ngọc Đăng Khoa, Trung Tuyến, Thu Phương.
 - **Kế hoạch validation:** mời hai người dùng ngoài nhóm thử một câu hỏi có nguồn và một câu hỏi không có nguồn; ghi task, quan sát, quote nguyên văn và thay đổi sau feedback trong `validation/`.
 
 ## §9. Changelog
