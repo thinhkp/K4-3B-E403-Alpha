@@ -38,19 +38,29 @@ Loại: [ ] Tối ưu tính năng có sẵn  [ ] Tính năng mới
 - [Sản phẩm 2]: ...
 
 ## §4. Thiết kế
-- Lát cắt MỘT CÂU (1 user · 1 việc · 1 quyết định AI · 1 kết quả):
-- Non-goals (≥3 thứ KHÔNG build):
-- Mức prototype nhắm tới: [ ] Sketch [ ] Mock [ ] Working — phần nào mock, phần nào thật:
-- Automation: [ ] augment [ ] conditional [ ] automate — lý do theo cost-of-error:
+- Lát cắt MỘT CÂU (1 user · 1 việc · 1 quyết định AI · 1 kết quả): Một học viên K4 đang học chọn phạm vi bài và đặt một câu hỏi; Orchestrator quyết định câu hỏi có đủ ngữ cảnh và nguồn trực tiếp hay không; học viên nhận câu trả lời có citation mở đúng slide, hoặc một đường lui rõ ràng nếu chưa đủ căn cứ.
+- Non-goals (≥3 thứ KHÔNG build): Không tự tìm web khi học viên chưa đồng ý; không tạo/chấm quiz hay thay quyết định của giảng viên; không cá nhân hoá dài hạn hoặc suy luận danh tính/năng lực từ `student`; không đồng bộ đăng nhập và trạng thái học thật với VLearn; không trả lời kiến thức ngoài khoá như một chatbot đa dụng.
+- Mức prototype nhắm tới: [ ] Sketch [ ] Mock [x] Working — phần chạy thật: React UI, FastAPI, Qdrant retrieval bằng OpenAI embeddings, MongoDB session/feedback, OpenAI tạo câu trả lời, citation mở đúng trang PDF, Tavily chỉ sau consent và dashboard insight. Phần mô phỏng: tài khoản `demo-student`, dropdown chọn bài thay cho ngữ cảnh VLearn thật và dữ liệu chỉ gồm fixture Day 1–2/transcript mẫu.
+- Automation: [ ] augment [x] conditional [ ] automate — AI tự trả lời khi có nguồn trực tiếp và citation kiểm chứng được; khi input mơ hồ, sai phạm vi hoặc không có căn cứ thì hỏi lại/dừng và để học viên quyết định đổi phạm vi hay tìm web. Cost-of-error cao vì câu trả lời sai có thể khiến học viên học sai mà không nhận ra, phải dò lại tài liệu hoặc kéo theo lỗi khi làm quiz; sửa sau đó đắt hơn một lượt hỏi lại.
 - §4b. Nguyên tắc đã áp dụng (≥4 — HAX/PAIR, xem guide):
   | Nguyên tắc | Áp cụ thể vào đâu trong prototype |
   |---|---|
+  | **G1 — Làm rõ hệ thống làm được gì** | Header ghi “Trả lời có căn cứ từ tài liệu học”; dropdown “Phạm vi câu hỏi” cho biết agent chỉ dùng toàn bộ khoá, Day 1 hoặc Day 2. |
+  | **G2 — Làm rõ nó làm tốt đến đâu** | Mỗi câu học thuật hiện citation, thẻ nguồn và slide tương ứng để học viên tự kiểm; khi không có nguồn, UI nói thẳng “Không có trong bài giảng” thay vì trả lời như chắc chắn. |
+  | **G10 — Thu hẹp phạm vi khi nghi ngờ** | Các case “Giải thích đoạn này”, “Cái này hoạt động thế nào?” chuyển sang `needs_clarification` và hỏi đúng một câu; không retrieval hoặc trả lời kiến thức trước khi đủ ngữ cảnh. |
+  | **G9 — Sửa dễ dàng** | Ô chat luôn sẵn để học viên bổ sung đoạn/tên slide hoặc hỏi lại; dropdown cho phép đổi phạm vi ngay, và citation có thể bấm để kiểm tra rồi sửa câu hỏi. |
+  | **G11 — Giải thích vì sao** | Citation `[trang N]`/`[đoạn Txx-NNN]` và thẻ nguồn giải thích câu trả lời dựa vào đâu; click citation mở chính xác tài liệu/trang ở panel trái. |
+  | **PAIR — Errors + Graceful Failure** | Prototype tách riêng ba trạng thái: thiếu ngữ cảnh → hỏi lại; không có nguồn → xin consent web; prompt injection/sai phạm vi → chặn hoặc hướng dẫn đổi phạm vi. Mỗi trạng thái có hành động tiếp theo, không dùng chung một thông báo lỗi. |
 
 ## §5. Kiểu lỗi — 4 lớp chỗ khó + kịch bản (≥8) [bảng theo guide §2.5]
 
 ## §6. Bốn đường đi của trải nghiệm
-- Happy path: · Low-confidence (②): · Failure/không căn cứ (①): · Correction (user sửa):
-- Khi bị đòi ngoài phạm vi (③): · Case đặc thù domain (④):
+- **Happy path:** Học viên chọn phạm vi → nhập câu hỏi → Input Guard và Intent/Context Gate cho qua → Retrieval Agent lấy nguồn Qdrant → Evidence Gate xác nhận đủ căn cứ → Tutor trả lời ngắn gọn → Citation Verifier giữ citation hợp lệ → học viên bấm citation và xem đúng trang slide ở panel trái → có thể rating.
+- **Low-confidence (②):** Input chỉ có “đoạn này/cái này/nó” hoặc đoạn bôi đen quá ngắn → agent không đoán → trả `needs_clarification` với đúng một câu hỏi yêu cầu khái niệm, đoạn liên quan hoặc tên slide → học viên bổ sung rồi flow chạy lại tối đa hai vòng.
+- **Failure/không căn cứ (①):** Không có source trả lời trực tiếp hoặc retrieval lỗi → trả “Không có trong bài giảng. Bạn có muốn mình tìm nguồn trên web không?” → chỉ gọi Tavily khi học viên bấm “Tìm nguồn trên web”; bấm “Không, quay lại bài học” thì kết thúc nhánh mà không gọi web.
+- **Correction (user sửa):** Học viên có thể đổi phạm vi, bổ sung ngữ cảnh hoặc hỏi lại ngay trong ô chat; có thể mở citation để đối chiếu slide rồi bấm rating Có/Chưa. Câu sửa được đưa lại từ Context Gate, không buộc tiếp tục theo phán đoán cũ.
+- **Khi bị đòi ngoài phạm vi (③):** Câu hỏi thời tiết, Bitcoin, lịch sử hoặc code không thuộc bài được chặn trước retrieval và chuyển sang web-consent. Nếu câu hỏi ghi Day 2 nhưng dropdown đang là Day 1, Scope Gate yêu cầu đổi phạm vi và không lấy nguồn Day 2 trái lựa chọn.
+- **Case đặc thù domain (④):** Prompt injection → `safe_refusal`, không retrieval/tool; citation do model tạo nhưng không thuộc nguồn → sửa một lần rồi fallback an toàn; OpenAI/Qdrant/Tavily lỗi → retry có giới hạn rồi thông báo ngắn, tuyệt đối không bịa nội dung hoặc URL.
 
 ## §7. Kiểm thử
 - Chiều chất lượng + định nghĩa kiểm chứng được:
