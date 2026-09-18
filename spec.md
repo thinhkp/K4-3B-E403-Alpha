@@ -1,4 +1,4 @@
-# AI SPEC — Tutor trả lời có căn cứ · Nhóm Alpha · Zone E403
+# AI SPEC — Tutor trả lời có căn cứ · Nhóm Alpha · Zone1 E403
 
 **Hướng:** [x] A — VLearn Tutor  
 **Loại:** [x] Tối ưu tính năng có sẵn (A1)
@@ -37,7 +37,7 @@
   2. Không cập nhật deadline, điểm số, lịch học hoặc dữ liệu cá nhân thay cho LMS.
   3. Không tự đánh giá điểm, kết luận chắc chắn về năng lực học viên hoặc thay giảng viên quyết định nội dung.
 - **Mức prototype nhắm tới:** [x] Sketch  [ ] Mock  [ ] Working.
-  - **Artifact CP2:** sơ đồ flow tại [`codebase/flow.md`](codebase/flow.md), mô tả input, điểm quyết định và các nhánh ngoại lệ.
+  - **Artifact CP2:** sơ đồ flow trong thư mục `codebase/`, mô tả input, điểm quyết định và các nhánh ngoại lệ.
   - **CP2 minh họa:** luồng có nguồn/không có nguồn, low-confidence, ngoài phạm vi và correction; citation và kết quả được mô tả ở mức mock.
   - **CP2 chưa làm:** retrieval thực tế, confidence bằng model và lời gọi API AI.
   - **CP3 dự kiến chạy thật:** lời gọi model tại quyết định trả lời hoặc chuyển sang “chưa đủ căn cứ”; log prompt và phản hồi thô.
@@ -76,10 +76,15 @@
 
 ## §7. Kiểm thử
 
-- **Chiều chất lượng:** citation đúng nguồn; không bịa khi thiếu nguồn; xử lý input mơ hồ; từ chối đúng ngoài phạm vi; câu trả lời đúng thuật ngữ domain.
-- **Golden set:** tối thiểu 20 case trong `eval/`, gồm ít nhất 2 case/lớp chỗ khó và ít nhất 10 case từ chatlog thật. Sẽ ghi kết quả từng case và lý do fail.
-- **Quality bar:** Chưa khóa ở CP2; sẽ chốt bằng số trong §7 trước hạn CP4, không hạ chuẩn sau khi có kết quả.
-- **Kết quả chạy:** Chưa có ở CP2; bổ sung sau khi tích hợp AI thật ở CP3.
+- **Chiều chất lượng và cách chấm:**
+  - **Citation đúng nguồn:** đạt khi citation trỏ đúng transcript/slide và đoạn nguồn thực sự hỗ trợ câu trả lời; chấm đạt/không đạt theo từng case.
+  - **Không bịa khi thiếu nguồn:** đạt khi hệ thống không khẳng định nội dung và không sinh citation khi không có nguồn hỗ trợ.
+  - **Xử lý input mơ hồ:** đạt khi hệ thống hỏi lại thay vì tự chọn một diễn giải.
+  - **Ngoài phạm vi:** đạt khi hệ thống từ chối yêu cầu ngoài phạm vi và hướng dẫn người học tới LMS/TA phù hợp.
+  - **Đúng thuật ngữ domain:** đạt khi câu trả lời dùng đúng thuật ngữ theo nguồn được trích dẫn, không tự mâu thuẫn với tài liệu.
+- **Golden set:** [`eval/golden-set.json`](eval/golden-set.json) gồm 20 case: ít nhất 2 case cho mỗi lớp chỗ khó, 8–10 case thường, 2–4 case hiếm/nguy hiểm và tối thiểu 10 case gắn với `turn_id` từ chatlog thật. Mỗi case có input, nguồn kỳ vọng, lớp chỗ khó và hành vi kỳ vọng.
+- **Quality bar (đã chốt cho CP4):** **Đạt khi ≥80% tổng số case trong golden set có câu trả lời đúng và citation truy vết được; đồng thời 100% case không có nguồn phù hợp phải từ chối an toàn, không bịa nội dung hoặc citation.** Quality bar này được giữ nguyên, không điều chỉnh theo kết quả chạy.
+- **Kết quả chạy:** [`eval/run-1-results.md`](eval/run-1-results.md) đã liệt kê đủ 20 case; hiện cả 20 case là `NOT_RUN` vì chưa có output từ prototype AI thật. Sau CP3 phải thay bằng output thực tế, PASS/FAIL, tỷ lệ đạt và nguyên nhân thất bại; không xem `NOT_RUN` là kết quả đạt.
 
 ## §8. Phân công & kế hoạch
 
@@ -94,4 +99,5 @@
 | Thời điểm | Đổi gì | Vì sao |
 |---|---|---|
 | 18/09/2026 | Cập nhật §1–§6 cho Track A1; bổ sung flow CP2, 4 lớp chỗ khó và 4 nguyên tắc HAX/PAIR | Chuyển Canvas CP1 thành thiết kế prototype có thể kiểm chứng; tập trung vào pain 27,1% lượt K4 không có citation |
-| TBD | Bổ sung golden set, kết quả chạy và quality bar | Thực hiện sau khi prototype AI thật chạy ở CP3 |
+| 18/09/2026 | Chốt các chiều chất lượng và quality bar tại §7 | Đóng băng tiêu chí đạt trước khi có kết quả chạy, tránh hạ chuẩn theo số đo |
+| Sau CP3 | Bổ sung golden set, kết quả từng case và phân tích lỗi | Ghi nhận trung thực sau khi tích hợp AI thật; không thay đổi quality bar đã chốt |
