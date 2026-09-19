@@ -88,7 +88,7 @@
 - Vũ Minh Điềm — retrieval/prompt, tiêu chí “đủ căn cứ”, prototype và AI call thật.
 - Phạm Quý — golden set, spec và demo.
 - **Willing users:** Đoàn Quang Minh, Nguyễn Văn An, Trần Ngọc Đăng Khoa, Trung Tuyến, Thu Phương.
-- **Kế hoạch validation:** mời hai người dùng ngoài nhóm thử một câu hỏi có nguồn và một câu hỏi không có nguồn; ghi task, quan sát, quote nguyên văn và thay đổi sau feedback trong `validation/`.
+- **Kế hoạch validation:** mời hai người dùng ngoài nhóm thử một câu hỏi có nguồn và một câu hỏi không có nguồn; ghi task, quan sát, quote nguyên văn và thay đổi sau feedback trong [`validation/README.md`](validation/README.md). Biểu mẫu cho Đoàn Quang Minh và Nguyễn Văn An đã được chuẩn bị tại `validation/`; kết quả chỉ được đánh dấu hoàn tất sau khi có buổi thử thật.
 
 ## §9. Changelog
 
